@@ -1,0 +1,26 @@
+name: Stock Screener
+
+on:
+  schedule:
+    - cron: '30 13 * * 1-5'  # JST 22:30（市場オープン前）
+    - cron: '30 21 * * 1-5'  # JST 06:30（市場クローズ後）
+  workflow_dispatch:          # 手動実行ボタンも使えるようにする
+
+jobs:
+  run-screener:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Pythonのセットアップ
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: ライブラリのインストール
+        run: pip install -r requirements.txt
+
+      - name: スクリーナー実行
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: python screener.py
