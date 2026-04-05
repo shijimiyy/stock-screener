@@ -1,24 +1,37 @@
 import requests
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 import yfinance as yf
 import os
 
 # ── 設定 ──────────────────────────────────────────
 WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL", "")
 
-# 監視銘柄リスト
-WATCHLIST = [
-    "NVDA", "AMD", "META", "TSLA",
-    "NBIS", "HIMS", "AAPL", "MSFT",
-    "AMZN", "GOOGL",
-]
-
 # 判定の閾値
 VOL_SURGE_X  = 2.0   # 出来高が前日の何倍以上で通知するか
 BREAKOUT_PCT = 2.0   # 直近5日高値から何%超えたらブレイクアウトか
 DAY_CHANGE   = 5.0   # 前日比何%以上で大陽線とするか
 # ────────────────────────────────────────────────
+
+def get_sp500_tickers():
+    """S&P500全銘柄リストを自動取得"""
+    try:
+        import pandas as pd
+        url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
+        tables = pd.read_html(url)
+        df = tables[0]
+        tickers = df["Symbol"].tolist()
+        # ドットをハイフンに変換（例：BRK.B → BRK-B）
+        tickers = [t.replace(".", "-") for t in tickers]
+        print(f"S&P500銘柄数: {len(tickers)}")
+        return tickers
+    except Exception as e:
+        print(f"S&P500リスト取得失敗: {e}")
+        # フォールバック用の主要銘柄
+        return [
+            "NVDA", "AMD", "META", "TSLA", "NBIS",
+            "HIMS", "AAPL", "MSFT", "AMZN", "GOOGL"
+        ]
 
 def get_data(ticker):
     """Yahoo Financeから過去10日分のデータを取得"""
@@ -131,8 +144,10 @@ def main():
     print(f"開始: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"{'='*40}")
 
+    tickers = get_sp500_tickers()
     results = []
-    for ticker in WATCHLIST:
+
+    for ticker in tickers:
         print(f"チェック中: {ticker}")
         df  = get_data(ticker)
         sig = check_signals(ticker, df)
@@ -141,7 +156,7 @@ def main():
             results.append(sig)
         else:
             print(f"  ─ シグナルなし")
-        time.sleep(1)
+        time.sleep(0.5)
 
     send_discord(results)
     print(f"\n完了: {datetime.now().strftime('%H:%M:%S')}")
