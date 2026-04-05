@@ -13,25 +13,42 @@ BREAKOUT_PCT = 2.0   # 直近5日高値から何%超えたらブレイクアウ�
 DAY_CHANGE   = 5.0   # 前日比何%以上で大陽線とするか
 # ────────────────────────────────────────────────
 
-def get_sp500_tickers():
-    """S&P500全銘柄リストを自動取得"""
+def get_tickers():
+    """S&P500＋ナスダック100の全銘柄リストを自動取得"""
+    import pandas as pd
+    tickers = set()
+
+    # S&P500取得
     try:
-        import pandas as pd
         url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
-        tables = pd.read_html(url)
-        df = tables[0]
-        tickers = df["Symbol"].tolist()
-        # ドットをハイフンに変換（例：BRK.B → BRK-B）
-        tickers = [t.replace(".", "-") for t in tickers]
-        print(f"S&P500銘柄数: {len(tickers)}")
-        return tickers
+        df = pd.read_html(url)[0]
+        sp500 = [t.replace(".", "-") for t in df["Symbol"].tolist()]
+        tickers.update(sp500)
+        print(f"S&P500: {len(sp500)}銘柄")
     except Exception as e:
-        print(f"S&P500リスト取得失敗: {e}")
-        # フォールバック用の主要銘柄
-        return [
-            "NVDA", "AMD", "META", "TSLA", "NBIS",
-            "HIMS", "AAPL", "MSFT", "AMZN", "GOOGL"
-        ]
+        print(f"S&P500取得失敗: {e}")
+
+    # ナスダック100取得
+    try:
+        url = "https://en.wikipedia.org/wiki/Nasdaq-100"
+        tables = pd.read_html(url)
+        for table in tables:
+            if "Ticker" in table.columns:
+                ndx = [t.replace(".", "-") for t in table["Ticker"].tolist()]
+                tickers.update(ndx)
+                print(f"ナスダック100: {len(ndx)}銘柄")
+                break
+    except Exception as e:
+        print(f"ナスダック100取得失敗: {e}")
+
+    tickers = list(tickers)
+    print(f"合計（重複除く）: {len(tickers)}銘柄")
+
+    if not tickers:
+        # フォールバック
+        return ["NVDA","AMD","META","TSLA","NBIS","HIMS","AAPL","MSFT","AMZN","GOOGL"]
+
+    return tickers
 
 def get_data(ticker):
     """Yahoo Financeから過去10日分のデータを取得"""
@@ -144,7 +161,7 @@ def main():
     print(f"開始: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"{'='*40}")
 
-    tickers = get_sp500_tickers()
+    tickers = get_tickers()
     results = []
 
     for ticker in tickers:
