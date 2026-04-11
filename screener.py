@@ -15,41 +15,52 @@ RSI_OVERSOLD = 30.0  # RSIがこの値以下で売られすぎ通知
 SHORT_RATIO  = 10.0  # 空売り比率がこの値以上でショートスクイーズ候補
 # ────────────────────────────────────────────────
 
-def get_tickers():
-    """S&P500＋ナスダック100の全銘柄リストを自動取得"""
-    import pandas as pd
-    tickers = set()
-
-    # S&P500取得
-    try:
-        url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
-        df = pd.read_html(url)[0]
-        sp500 = [t.replace(".", "-") for t in df["Symbol"].tolist()]
-        tickers.update(sp500)
-        print(f"S&P500: {len(sp500)}銘柄")
-    except Exception as e:
-        print(f"S&P500取得失敗: {e}")
-
-    # ナスダック100取得
-    try:
-        url = "https://en.wikipedia.org/wiki/Nasdaq-100"
-        tables = pd.read_html(url)
-        for table in tables:
-            if "Ticker" in table.columns:
-                ndx = [t.replace(".", "-") for t in table["Ticker"].tolist()]
-                tickers.update(ndx)
-                print(f"ナスダック100: {len(ndx)}銘柄")
-                break
-    except Exception as e:
-        print(f"ナスダック100取得失敗: {e}")
-
-    tickers = list(tickers)
-    print(f"合計（重複除く）: {len(tickers)}銘柄")
-
-    if not tickers:
-        return ["NVDA","AMD","META","TSLA","NBIS","HIMS","AAPL","MSFT","AMZN","GOOGL"]
-
-    return tickers
+# S&P500 + ナスダック100 固定リスト
+TICKERS = list(set([
+    "MMM","AOS","ABT","ABBV","ACN","ADBE","AMD","AES","AFL","A","APD","ABNB","AKAM","ALB","ARE",
+    "ALGN","ALLE","LNT","ALL","GOOGL","GOOG","MO","AMZN","AMCR","AEE","AAL","AEP","AXP","AIG",
+    "AMT","AWK","AMP","AME","AMGN","APH","ADI","ANSS","AON","APA","AAPL","AMAT","APTV","ACGL",
+    "ADM","ANET","AJG","AIZ","T","ATO","ADSK","AZO","AVB","AVY","AXON","BKR","BALL","BAC","BK",
+    "BBWI","BAX","BDX","BRK-B","BBY","BIO","TECH","BIIB","BLK","BX","BA","BCR","BSX","BMY","AVGO",
+    "BR","BRO","BF-B","BLDR","BG","CDNS","CZR","CPT","CPB","COF","CAH","KMX","CCL","CARR","CAT",
+    "CBOE","CBRE","CDW","CE","COR","CNC","CNX","CDAY","CF","CRL","SCHW","CHTR","CVX","CMG","CB",
+    "CHD","CI","CINF","CTAS","CSCO","C","CFG","CLX","CME","CMS","KO","CTSH","CL","CMCSA","CMA",
+    "CAG","COP","ED","STZ","CEG","COO","CPRT","GLW","CTVA","CSGP","COST","CTRA","CCI","CSX",
+    "CMI","CVS","DHI","DHR","DRI","DVA","DAY","DECK","DE","DAL","DVN","DXCM","FANG","DLR","DFS",
+    "DG","DLTR","D","DPZ","DOV","DOW","DHC","DTE","DUK","DD","EMN","ETN","EBAY","ECL","EIX",
+    "EW","EA","ELV","LLY","EMR","ENPH","ETR","EOG","EPAM","EQT","EFX","EQIX","EQR","ESS","EL",
+    "ETSY","EG","EVRST","ES","EXC","EXPE","EXPD","EXR","XOM","FFIV","FDS","FICO","FAST","FRT",
+    "FDX","FIS","FITB","FSLR","FE","FI","FLT","FMC","F","FTNT","FTV","FOXA","FOX","BEN","FCX",
+    "GRMN","IT","GE","GEHC","GEV","GEN","GNRC","GD","GIS","GM","GPC","GILD","GPN","GL","GDDY",
+    "GS","HAL","HIG","HAS","HCA","DOC","HSIC","HSY","HES","HPE","HLT","HOLX","HD","HON","HRL",
+    "HST","HWM","HPQ","HUBB","HUM","HBAN","HII","IBM","IEX","IDXX","ITW","INCY","IR","PODD",
+    "INTC","ICE","IFF","IP","IPG","INTU","ISRG","IVZ","INVH","IQV","IRM","JBHT","JBL","JKHY",
+    "J","JNJ","JCI","JPM","JNPR","K","KVUE","KDP","KEY","KEYS","KMB","KIM","KMI","KLAC","KHC",
+    "KR","LHX","LH","LRCX","LW","LVS","LDOS","LEN","LNC","LIN","LYV","LKQ","LMT","L","LOW",
+    "LULU","LYB","MTB","MRO","MPC","MKTX","MAR","MMC","MLM","MAS","MA","MTCH","MKC","MCD","MCK",
+    "MDT","MRK","META","MET","MTD","MGM","MCHP","MU","MSFT","MAA","MRNA","MHK","MOH","TAP","MDLZ",
+    "MPWR","MNST","MCO","MS","MOS","MSI","MSCI","NDAQ","NTAP","NFLX","NWL","NEM","NWSA","NWS",
+    "NEE","NKE","NI","NDSN","NSC","NTRS","NOC","NCLH","NRG","NUE","NVDA","NVR","NXPI","ORLY",
+    "OXY","ODFL","OMC","ON","OKE","ORCL","OTIS","PCAR","PKG","PANW","PH","PAYX","PAYC","PYPL",
+    "PNR","PEP","PFE","PCG","PM","PSX","PNW","PXD","PNC","POOL","PPG","PPL","PFG","PG","PGR",
+    "PRU","PEG","PTCT","PTC","PSA","PHM","QRVO","PWR","QCOM","DGX","RL","RJF","RTX","O","REG",
+    "REGN","RF","RSG","RMD","RVTY","ROK","ROL","ROP","ROST","RCL","SPGI","CRM","SBAC","SLB",
+    "STX","SRE","NOW","SHW","SPG","SWKS","SJM","SW","SNA","SOLV","SO","LUV","SWK","SBUX","STT",
+    "STLD","STE","SYK","SMCI","SYF","SNPS","SYY","TMUS","TROW","TTWO","TPR","TRGP","TGT","TEL",
+    "TDY","TFX","TER","TSLA","TXN","TMO","TJX","TSCO","TT","TDG","TRV","TRMB","TFC","TYL","TSN",
+    "USB","UBER","UDR","ULTA","UNP","UAL","UPS","URI","UNH","UHS","VLO","VTR","VLTO","VRSN",
+    "VRSK","VZ","VRTX","VTRS","VICI","V","VST","VMC","WRB","GWW","WAB","WBA","WMT","DIS","WBD",
+    "WM","WAT","WEC","WFC","WELL","WST","WDC","WY","WHR","WMB","WTW","WYNN","XEL","XYL","YUM",
+    "ZBRA","ZBH","ZTS",
+    # ナスダック100追加分
+    "ADSK","AEP","ABNB","ALGN","GOOGL","GOOG","AMZN","AMD","AMGN","ADI","ANSS","AAPL","AMAT",
+    "ASML","AZN","TEAM","ADBE","AVGO","BIIB","BKNG","CDNS","CHTR","CTAS","CSCO","CTSH","CMCSA",
+    "CPRT","CSGP","COST","CRWD","CSX","DDOG","DXCM","FANG","DLTR","EA","ENPH","EXC","FAST",
+    "FTNT","GEHC","GILD","HON","IDXX","ILMN","INTC","INTU","ISRG","KDP","KHC","KLAC","LRCX",
+    "LULU","MAR","MRVL","MELI","META","MCHP","MU","MSFT","MDLZ","MNST","NFLX","NVDA","NXPI",
+    "ORLY","ODFL","ON","PCAR","PANW","PAYX","PYPL","PEP","QCOM","REGN","ROST","CRM","SBUX",
+    "SNPS","TMUS","TSLA","TXN","VRSK","VRTX","WBA","WBD","WDAY","XEL","ZS","ZM","HIMS","NBIS",
+]))
 
 def get_data(ticker):
     """Yahoo Financeから過去30日分のデータを取得"""
@@ -57,7 +68,7 @@ def get_data(ticker):
         df = yf.download(ticker, period="30d", interval="1d", progress=False, auto_adjust=True)
         if df is None or len(df) < 3:
             return None
-        df.columns = df.columns.get_level_values(0)  # MultiIndex対策
+        df.columns = df.columns.get_level_values(0)
         return df
     except Exception as e:
         print(f"  ⚠️ {ticker} 取得失敗: {e}")
@@ -85,7 +96,7 @@ def get_short_ratio(ticker):
         info = t.info
         ratio = info.get("shortPercentOfFloat", None)
         if ratio is not None:
-            return round(ratio * 100, 1)  # 小数→%に変換
+            return round(ratio * 100, 1)
         return None
     except:
         return None
@@ -95,9 +106,9 @@ def check_signals(ticker, df):
     if df is None or len(df) < 3:
         return None
 
-    latest  = df.iloc[-1]
-    prev    = df.iloc[-2]
-    past5   = df.iloc[-6:-1] if len(df) >= 6 else df.iloc[:-1]
+    latest = df.iloc[-1]
+    prev   = df.iloc[-2]
+    past5  = df.iloc[-6:-1] if len(df) >= 6 else df.iloc[:-1]
 
     signals = []
     details = {}
@@ -200,12 +211,12 @@ def send_discord(results):
 def main():
     print(f"\n{'='*40}")
     print(f"開始: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"合計: {len(TICKERS)}銘柄をスキャン")
     print(f"{'='*40}")
 
-    tickers = get_tickers()
     results = []
 
-    for ticker in tickers:
+    for ticker in TICKERS:
         print(f"チェック中: {ticker}")
         df  = get_data(ticker)
         sig = check_signals(ticker, df)
@@ -214,7 +225,7 @@ def main():
             results.append(sig)
         else:
             print(f"  ─ シグナルなし")
-        time.sleep(0.5)
+        time.sleep(0.3)
 
     send_discord(results)
     print(f"\n完了: {datetime.now().strftime('%H:%M:%S')}")
