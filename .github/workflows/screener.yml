@@ -2,7 +2,6 @@ name: Stock Screener
 
 on:
   schedule:
-    - cron: '30 13 * * 1-5'  # JST 22:30（市場オープン前）
     - cron: '30 21 * * 1-5'  # JST 06:30（市場クローズ後）
   workflow_dispatch:          # 手動実行ボタンも使えるようにする
 
