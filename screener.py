@@ -45,7 +45,6 @@ def get_tickers():
     print(f"合計（重複除く）: {len(tickers)}銘柄")
 
     if not tickers:
-        # フォールバック
         return ["NVDA","AMD","META","TSLA","NBIS","HIMS","AAPL","MSFT","AMZN","GOOGL"]
 
     return tickers
@@ -53,9 +52,10 @@ def get_tickers():
 def get_data(ticker):
     """Yahoo Financeから過去10日分のデータを取得"""
     try:
-        df = yf.download(ticker, period="10d", interval="1d", progress=False)
+        df = yf.download(ticker, period="10d", interval="1d", progress=False, auto_adjust=True)
         if df is None or len(df) < 3:
             return None
+        df.columns = df.columns.get_level_values(0)  # MultiIndex対策
         return df
     except Exception as e:
         print(f"  ⚠️ {ticker} 取得失敗: {e}")
