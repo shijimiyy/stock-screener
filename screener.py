@@ -11,6 +11,8 @@ WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL", "")
 VOL_SURGE_X  = 2.0   # 出来高が前日の何倍以上で通知するか
 BREAKOUT_PCT = 2.0   # 直近5日高値から何%超えたらブレイクアウトか
 DAY_CHANGE   = 5.0   # 前日比何%以上で大陽線とするか
+RSI_OVERSOLD = 30.0  # RSIがこの値以下で売られすぎ通知
+SHORT_RATIO  = 10.0  # 空売り比率がこの値以上でショートスクイーズ候補
 # ────────────────────────────────────────────────
 
 def get_tickers():
@@ -50,15 +52,42 @@ def get_tickers():
     return tickers
 
 def get_data(ticker):
-    """Yahoo Financeから過去10日分のデータを取得"""
+    """Yahoo Financeから過去30日分のデータを取得"""
     try:
-        df = yf.download(ticker, period="10d", interval="1d", progress=False, auto_adjust=True)
+        df = yf.download(ticker, period="30d", interval="1d", progress=False, auto_adjust=True)
         if df is None or len(df) < 3:
             return None
         df.columns = df.columns.get_level_values(0)  # MultiIndex対策
         return df
     except Exception as e:
         print(f"  ⚠️ {ticker} 取得失敗: {e}")
+        return None
+
+def calc_rsi(df, period=14):
+    """RSIを計算する"""
+    try:
+        close = df["Close"]
+        delta = close.diff()
+        gain = delta.where(delta > 0, 0.0)
+        loss = -delta.where(delta < 0, 0.0)
+        avg_gain = gain.rolling(window=period).mean()
+        avg_loss = loss.rolling(window=period).mean()
+        rs = avg_gain / avg_loss
+        rsi = 100 - (100 / (1 + rs))
+        return float(rsi.iloc[-1])
+    except:
+        return None
+
+def get_short_ratio(ticker):
+    """空売り比率を取得する"""
+    try:
+        t = yf.Ticker(ticker)
+        info = t.info
+        ratio = info.get("shortPercentOfFloat", None)
+        if ratio is not None:
+            return round(ratio * 100, 1)  # 小数→%に変換
+        return None
+    except:
         return None
 
 def check_signals(ticker, df):
@@ -108,6 +137,18 @@ def check_signals(ticker, df):
                 details["騰落率"] = f"+{day_chg:.1f}%"
     except:
         pass
+
+    # ④ RSI売られすぎ（30以下）
+    rsi = calc_rsi(df)
+    if rsi is not None and rsi <= RSI_OVERSOLD:
+        signals.append("📉 RSI売られすぎ")
+        details["RSI"] = f"{rsi:.1f}"
+
+    # ⑤ 空売り比率（ショートスクイーズ候補）
+    short_ratio = get_short_ratio(ticker)
+    if short_ratio is not None and short_ratio >= SHORT_RATIO:
+        signals.append("💥 空売り高い")
+        details["空売り比率"] = f"{short_ratio}%"
 
     if not signals:
         return None
